@@ -203,8 +203,9 @@ var PhotoSwipeUI_Default =
 				return false;
 			}
 
-			if( target.hasAttribute('download') ) {
-				return true;
+			if( target.hasAttribute('download') || target.href.indexOf('mailto:') === 0) {
+				location.href = target.href;
+				return false;
 			}
 
 			window.open(target.href, 'pswp_share', 'scrollbars=yes,resizable=yes,toolbar=no,'+
