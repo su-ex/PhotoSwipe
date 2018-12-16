@@ -29,6 +29,7 @@ var _options = {
 	arrowKeys: true,
 	mainScrollEndFriction: 0.35,
 	panEndFriction: 0.35,
+	animateTransitions: false,
 	isClickableElement: function(el) {
         return el.tagName === 'A';
     },
@@ -759,28 +760,57 @@ var publicMethods = {
 
 	goTo: function(index) {
 
-		index = _getLoopedId(index);
+		if ( _options.animateTransitions ) {
 
-		var diff = index - _currentItemIndex;
-		_indexDiff = diff;
+			_finishSwipeMainScrollGesture('swipe', (80*dir), {
+				lastFlickDist: {
+					x : 80,
+					y: 0
+				},
+				lastFlickOffset: {
+					x : (80*dir),
+					y: 0
+				},
+				lastFlickSpeed: {
+					x : (2*dir),
+					y: 0
+				}
+			});
 
-		_currentItemIndex = index;
-		self.currItem = _getItemAt( _currentItemIndex );
-		_currPositionIndex -= diff;
-		
-		_moveMainScroll(_slideSize.x * _currPositionIndex);
-		
+		} else {
 
-		_stopAllAnimations();
-		_mainScrollAnimating = false;
+			index = _getLoopedId(index);
 
-		self.updateCurrItem();
+			var diff = index - _currentItemIndex;
+			_indexDiff = diff;
+
+			_currentItemIndex = index;
+			self.currItem = _getItemAt( _currentItemIndex );
+			_currPositionIndex -= diff;
+
+			_moveMainScroll(_slideSize.x * _currPositionIndex);
+
+			_stopAllAnimations();
+			_mainScrollAnimating = false;
+
+			self.updateCurrItem();
+
+		}
+
 	},
 	next: function() {
-		self.goTo( _currentItemIndex + 1);
+		if ( _options.animateTransitions ) {
+			self.goTo( -1 );
+		} else {
+			self.goTo( _currentItemIndex + 1);
+		}
 	},
 	prev: function() {
-		self.goTo( _currentItemIndex - 1);
+		if ( _options.animateTransitions ) {
+			self.goTo( 1 );
+		} else {
+			self.goTo( _currentItemIndex - 1);
+		}
 	},
 
 	// update current zoom/pan objects
