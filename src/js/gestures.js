@@ -772,7 +772,7 @@ var _gestureStartTime,
 
 		// main scroll 
 		if(  (_mainScrollShifted || _mainScrollAnimating) && numPoints === 0) {
-			var totalShiftDist = _currPoint.x - _startPoint.x,
+			var totalShiftDist = _currPoint.x - _startPoint.x;
 			var itemChanged = _finishSwipeMainScrollGesture(gestureType, totalShiftDist, _releaseAnimData);
 			if(itemChanged) {
 				return;
