@@ -130,7 +130,7 @@ var _isOpen,
 		return _listeners[name].push(fn);
 	},
 	_shout = function(name) {
-		var listeners = _listeners[name];
+		var listeners = _listeners && _listeners[name];
 
 		if(listeners) {
 			var args = Array.prototype.slice.call(arguments);
