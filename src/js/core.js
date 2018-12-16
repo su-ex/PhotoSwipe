@@ -804,14 +804,14 @@ var publicMethods = {
 		if ( _options.animateTransitions ) {
 			self.goTo( -1 );
 		} else {
-			self.goTo( _currentItemIndex + 1);
+			self.goTo( parseInt(_currentItemIndex) + 1);
 		}
 	},
 	prev: function() {
 		if ( _options.animateTransitions ) {
 			self.goTo( 1 );
 		} else {
-			self.goTo( _currentItemIndex - 1);
+			self.goTo( parseInt(_currentItemIndex) - 1);
 		}
 	},
 
