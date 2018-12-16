@@ -1,7 +1,8 @@
-/*! PhotoSwipe - v4.1.2 - 2017-06-19
+/*! PhotoSwipe - v4.1.2 - 2018-12-17
 * http://photoswipe.com
-* Copyright (c) 2017 Dmitry Semenov; */
+* Copyright (c) 2018 Dmitry Semenov; */
 (function (root, factory) { 
+	if (root === undefined && window !== undefined) root = window; 
 	if (typeof define === 'function' && define.amd) {
 		define(factory);
 	} else if (typeof exports === 'object') {
@@ -43,6 +44,11 @@ var framework = {
 		}
 		return el;
 	},
+	resetEl: function(el) {
+		while(el.firstChild) {
+			el.removeChild(el.firstChild);
+		}
+	},
 	getScrollY: function() {
 		var yOffset = window.pageYOffset;
 		return yOffset !== undefined ? yOffset : document.documentElement.scrollTop;
@@ -52,9 +58,7 @@ var framework = {
 	},
 	removeClass: function(el, className) {
 		var reg = new RegExp('(\\s|^)' + className + '(\\s|$)');
-		if ( el && typeof el === 'object' && el.nodeType ) {
-			el.className = el.className.replace(reg, ' ').replace(/^\s\s*/, '').replace(/\s\s*$/, ''); 
-		}
+		el.className = el.className.replace(reg, ' ').replace(/^\s\s*/, '').replace(/\s\s*$/, ''); 
 	},
 	addClass: function(el, className) {
 		if( !framework.hasClass(el,className) ) {
@@ -329,6 +333,9 @@ var _options = {
 	arrowKeys: true,
 	mainScrollEndFriction: 0.35,
 	panEndFriction: 0.35,
+	animateTransitions: false,
+	// Allows for overriding the passed in width/height values with the actual image width/height once it has downloaded.
+	useNaturalDimensionsOverride: false,
 	isClickableElement: function(el) {
         return el.tagName === 'A';
     },
@@ -427,7 +434,7 @@ var _isOpen,
 		return _listeners[name].push(fn);
 	},
 	_shout = function(name) {
-		var listeners = _listeners[name];
+		var listeners = _listeners && _listeners[name];
 
 		if(listeners) {
 			var args = Array.prototype.slice.call(arguments);
@@ -455,7 +462,7 @@ var _isOpen,
 		styleObj[_transformKey] = _translatePrefix + x + 'px, ' + y + 'px' + _translateSufix + ' scale(' + zoom + ')';
 	},
 	_applyCurrentZoomPan = function( allowRenderResolution ) {
-		if(_currZoomElementStyle) {
+		if(_currZoomElementStyle && !self.currItem.loadError) {
 
 			if(allowRenderResolution) {
 				if(_currZoomLevel > self.currItem.fitRatio) {
@@ -884,6 +891,7 @@ var publicMethods = {
 
 		_shout('firstUpdate');
 		_currentItemIndex = _currentItemIndex || _options.index || 0;
+		_currentItemIndex = parseInt(_currentItemIndex);
 		// validate index
 		if( isNaN(_currentItemIndex) || _currentItemIndex < 0 || _currentItemIndex >= _getNumItems() ) {
 			_currentItemIndex = 0;
@@ -1058,28 +1066,57 @@ var publicMethods = {
 
 	goTo: function(index) {
 
-		index = _getLoopedId(index);
+		if ( _options.animateTransitions ) {
 
-		var diff = index - _currentItemIndex;
-		_indexDiff = diff;
+			_finishSwipeMainScrollGesture('swipe', (80*dir), {
+				lastFlickDist: {
+					x : 80,
+					y: 0
+				},
+				lastFlickOffset: {
+					x : (80*dir),
+					y: 0
+				},
+				lastFlickSpeed: {
+					x : (2*dir),
+					y: 0
+				}
+			});
 
-		_currentItemIndex = index;
-		self.currItem = _getItemAt( _currentItemIndex );
-		_currPositionIndex -= diff;
-		
-		_moveMainScroll(_slideSize.x * _currPositionIndex);
-		
+		} else {
 
-		_stopAllAnimations();
-		_mainScrollAnimating = false;
+			index = _getLoopedId(index);
 
-		self.updateCurrItem();
+			var diff = index - _currentItemIndex;
+			_indexDiff = diff;
+
+			_currentItemIndex = index;
+			self.currItem = _getItemAt( _currentItemIndex );
+			_currPositionIndex -= diff;
+
+			_moveMainScroll(_slideSize.x * _currPositionIndex);
+
+			_stopAllAnimations();
+			_mainScrollAnimating = false;
+
+			self.updateCurrItem();
+
+		}
+
 	},
 	next: function() {
-		self.goTo( _currentItemIndex + 1);
+		if ( _options.animateTransitions ) {
+			self.goTo( -1 );
+		} else {
+			self.goTo( parseInt(_currentItemIndex) + 1);
+		}
 	},
 	prev: function() {
-		self.goTo( _currentItemIndex - 1);
+		if ( _options.animateTransitions ) {
+			self.goTo( 1 );
+		} else {
+			self.goTo( parseInt(_currentItemIndex) - 1);
+		}
 	},
 
 	// update current zoom/pan objects
@@ -1553,6 +1590,8 @@ var _gestureStartTime,
 				newMainScrollPos = newMainScrollPosition;
 
 			} else if(_direction === 'h' && axis === 'x' && !_zoomStarted ) {
+				
+				_shout('horizPanStarted');
 				
 				if(dir) {
 					if(newOffset > _currPanBounds.min[axis]) {
@@ -2118,7 +2157,8 @@ var _gestureStartTime,
 
 		// main scroll 
 		if(  (_mainScrollShifted || _mainScrollAnimating) && numPoints === 0) {
-			var itemChanged = _finishSwipeMainScrollGesture(gestureType, _releaseAnimData);
+			var totalShiftDist = _currPoint.x - _startPoint.x;
+			var itemChanged = _finishSwipeMainScrollGesture(gestureType, totalShiftDist, _releaseAnimData);
 			if(itemChanged) {
 				return;
 			}
@@ -2295,7 +2335,7 @@ var _gestureStartTime,
 	},
 
 
-	_finishSwipeMainScrollGesture = function(gestureType, _releaseAnimData) {
+	_finishSwipeMainScrollGesture = function(gestureType, totalShiftDist, _releaseAnimData) {
 		var itemChanged;
 		if(!_mainScrollAnimating) {
 			_currZoomedItemIndex = _currentItemIndex;
@@ -2306,8 +2346,7 @@ var _gestureStartTime,
 		var itemsDiff;
 
 		if(gestureType === 'swipe') {
-			var totalShiftDist = _currPoint.x - _startPoint.x,
-				isFastLastFlick = _releaseAnimData.lastFlickDist.x < 10;
+			var isFastLastFlick = _releaseAnimData.lastFlickDist.x < 10;
 
 			// if container is shifted for more than MIN_SWIPE_DISTANCE, 
 			// and last flick gesture was in right direction
@@ -2824,6 +2863,9 @@ var _getItemAt,
 
 			item.imageAppended = true;
 			_setImageSize(item, img, (item === self.currItem && _renderMaxResolution) );
+			_setImageAltText(item, img);
+			
+			_shout('appendingImage', index, item, img);
 			
 			baseDiv.appendChild(img);
 
@@ -2847,6 +2889,26 @@ var _getItemAt,
 		var onComplete = function() {
 			item.loading = false;
 			item.loaded = true;
+			var shouldUpdateSize = false;
+
+			if (_options.useNaturalDimensionsOverride && item.naturalDimensionsSet !== true) {
+				// Attempt to use the actual width/height of the image regardless of what was initially specified.
+				item.naturalDimensionsSet = true;
+
+				if (this.naturalWidth && item.w !== this.naturalWidth) {
+					item.w = this.naturalWidth;
+					shouldUpdateSize = true;
+				}
+
+				if (this.naturalHeight && item.h !== this.naturalHeight) {
+					item.h = this.naturalHeight;
+					shouldUpdateSize = true;
+				}
+
+				if (shouldUpdateSize) {
+					self.updateSize(true);
+				}
+			}
 
 			if(item.loadComplete) {
 				item.loadComplete(item);
@@ -2870,12 +2932,17 @@ var _getItemAt,
 		if(item.src && item.loadError && item.container) {
 
 			if(cleanUp) {
-				item.container.innerHTML = '';
+				framework.resetEl(item.container);
 			}
 
 			item.container.innerHTML = _options.errorMsg.replace('%url%',  item.src );
 			return true;
 			
+		}
+	},
+	_setImageAltText = function(item, img) {
+		if(item.alt || item.alt === "") {
+			img.alt = item.alt;
 		}
 	},
 	_setImageSize = function(item, img, maxRes) {
@@ -2889,6 +2956,16 @@ var _getItemAt,
 
 		var w = maxRes ? item.w : Math.round(item.w * item.fitRatio),
 			h = maxRes ? item.h : Math.round(item.h * item.fitRatio);
+		
+		if (item.hasFlippedDimensions) {
+			var temp = w;
+			w = h;
+			h = temp;
+		}
+		
+		if (item.rotationDeg) {
+			framework.addClass(img, 'pswp__rotate'+item.rotationDeg);
+		}
 		
 		if(item.placeholder && !item.loaded) {
 			item.placeholder.style.width = w + 'px';
@@ -2910,6 +2987,31 @@ var _getItemAt,
 				}
 			}
 			_imagesToAppendPool = [];
+		}
+	},
+	_preprocessItems = function(items) {
+		//apply transformations based on EXIF orientation data, setting
+		// the attributes 'rotationDeg' and 'hasFlippedDimensions' 
+		var rotationMap = {
+			3: 180,	
+			6: 90,
+			8: 270
+		};
+		for (var i = 0; i < items.length; ++i) {
+			var item = items[i];
+			var orientation = item.exif_orientation;
+			if (orientation) {
+				orientation = parseInt(orientation);
+				var rotationDeg = rotationMap[orientation];
+				item.rotationDeg = rotationDeg;
+				var flipDim = rotationDeg && rotationDeg % 180 == 90;
+				if (flipDim && !item.hasFlippedDimensions) {
+					var w = item.w;
+					item.w = item.h;
+					item.h = w;
+					item.hasFlippedDimensions = true;
+				}
+			}
 		}
 	};
 	
@@ -2937,10 +3039,10 @@ _registerModule('Controller', {
 		},
 		initController: function() {
 			framework.extend(_options, _controllerDefaultOptions, true);
+			_preprocessItems(items);
 			self.items = _items = items;
 			_getItemAt = self.getItemAt;
 			_getNumItems = _options.getNumItemsFn; //self.getNumItems;
-
 
 
 			_initialIsLoop = _options.loop;
@@ -2952,16 +3054,14 @@ _registerModule('Controller', {
 
 				var p = _options.preload,
 					isNext = diff === null ? true : (diff >= 0),
-					preloadBefore = Math.min(p[0], _getNumItems() ),
-					preloadAfter = Math.min(p[1], _getNumItems() ),
+					numItems = _getNumItems(),
+					preloadBefore = Math.min(p[0], numItems),
+					preloadAfter = Math.min(p[1], numItems),
 					i;
 
+				for (i=-preloadBefore; i<=preloadAfter; i++) {
 
-				for(i = 1; i <= (isNext ? preloadAfter : preloadBefore); i++) {
-					self.lazyLoadItem(_currentItemIndex+i);
-				}
-				for(i = 1; i <= (isNext ? preloadBefore : preloadAfter); i++) {
-					self.lazyLoadItem(_currentItemIndex-i);
+					self.lazyLoadItem( (numItems + _currentItemIndex + i) % numItems );
 				}
 			});
 
@@ -3037,7 +3137,7 @@ _registerModule('Controller', {
 				img;
 			
 			if(!item) {
-				holder.el.innerHTML = '';
+				framework.resetEl(holder.el);
 				return;
 			}
 
@@ -3125,6 +3225,7 @@ _registerModule('Controller', {
 					}
 					
 					_setImageSize(item, placeholder);
+					_setImageAltText(item, placeholder);
 
 					baseDiv.appendChild(placeholder);
 					item.placeholder = placeholder;
@@ -3160,6 +3261,7 @@ _registerModule('Controller', {
 				img.style.opacity = 1;
 				img.src = item.src;
 				_setImageSize(item, img);
+				_setImageAltText(item, img);
 				_appendImage(index, item, baseDiv, img, true);
 			}
 			
@@ -3171,7 +3273,7 @@ _registerModule('Controller', {
 				_applyZoomPanToItem(item);
 			}
 
-			holder.el.innerHTML = '';
+			framework.resetEl(holder.el);
 			holder.el.appendChild(baseDiv);
 		},
 
@@ -3184,6 +3286,7 @@ _registerModule('Controller', {
 
 	}
 });
+
 
 /*>>items-controller*/
 
@@ -3367,11 +3470,14 @@ _registerModule('DesktopZoom', {
 		},
 
 		handleMouseWheel: function(e) {
+			if(!_options.closeOnScroll){
+				return true;
+			}
 
 			if(_currZoomLevel <= self.currItem.fitRatio) {
 				if( _options.modal ) {
 
-					if (!_options.closeOnScroll || _numAnimations || _isDragging) {
+					if (_numAnimations || _isDragging) {
 						e.preventDefault();
 					} else if(_transformKey && Math.abs(e.deltaY) > 2) {
 						// close PhotoSwipe

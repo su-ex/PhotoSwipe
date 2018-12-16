@@ -1,6 +1,6 @@
-/*! PhotoSwipe Default UI - 4.1.2 - 2017-06-19
+/*! PhotoSwipe Default UI - 4.1.2 - 2018-12-17
 * http://photoswipe.com
-* Copyright (c) 2017 Dmitry Semenov; */
+* Copyright (c) 2018 Dmitry Semenov; */
 /**
 *
 * UI on top of main sliding area (caption, arrows, close button, etc.).
@@ -55,7 +55,7 @@ var PhotoSwipeUI_Default =
 			
 			addCaptionHTMLFn: function(item, captionEl /*, isFake */) {
 				if(!item.title) {
-					captionEl.children[0].innerHTML = '';
+					framework.resetEl(captionEl.firstChild);
 					return false;
 				}
 				captionEl.children[0].innerHTML = item.title;
@@ -78,9 +78,9 @@ var PhotoSwipeUI_Default =
 
 			shareButtons: [
 				{id:'facebook', label:'Share on Facebook', url:'https://www.facebook.com/sharer/sharer.php?u={{url}}'},
-				{id:'twitter', label:'Tweet', url:'https://twitter.com/intent/tweet?text={{text}}&url={{url}}'},
+				{id:'twitter', label:'Tweet', url:'https://twitter.com/intent/tweet?text={{text}}&amp;url={{url}}'},
 				{id:'pinterest', label:'Pin it', url:'http://www.pinterest.com/pin/create/button/'+
-													'?url={{url}}&media={{image_url}}&description={{text}}'},
+													'?url={{url}}&amp;media={{image_url}}&amp;description={{text}}'},
 				{id:'download', label:'Download image', url:'{{raw_image_url}}', download:true}
 			],
 			getImageURLForShare: function( /* shareButtonData */ ) {
@@ -206,8 +206,9 @@ var PhotoSwipeUI_Default =
 				return false;
 			}
 
-			if( target.hasAttribute('download') ) {
-				return true;
+			if( target.hasAttribute('download') || target.href.indexOf('mailto:') === 0) {
+				location.href = target.href;
+				return false;
 			}
 
 			window.open(target.href, 'pswp_share', 'scrollbars=yes,resizable=yes,toolbar=no,'+
@@ -242,7 +243,7 @@ var PhotoSwipeUI_Default =
 
 				shareButtonOut += '<a href="' + shareURL + '" target="_blank" '+
 									'class="pswp__share--' + shareButtonData.id + '"' +
-									(shareButtonData.download ? 'download' : '') + '>' + 
+									(shareButtonData.download ? ' download="download"' : '') + '>' +
 									shareButtonData.label + '</a>';
 
 				if(_options.parseShareButtonOut) {
@@ -580,6 +581,7 @@ var PhotoSwipeUI_Default =
 				( t.getAttribute('class').indexOf('__caption') > 0 || (/(SMALL|STRONG|EM)/i).test(t.tagName) ) 
 			) {
 				preventObj.prevent = false;
+				_stopAllAnimations();
 			}
 		});
 
@@ -678,9 +680,9 @@ var PhotoSwipeUI_Default =
 			ui.updateIndexIndicator();
 
 			if(_options.captionEl) {
-				_options.addCaptionHTMLFn(pswp.currItem, _captionContainer);
+				var captionExists = _options.addCaptionHTMLFn(pswp.currItem, _captionContainer);
 
-				_togglePswpClass(_captionContainer, 'caption--empty', !pswp.currItem.title);
+				_togglePswpClass(_captionContainer, 'caption--empty', !captionExists);
 			}
 
 			_overlayUIUpdated = true;
@@ -712,11 +714,9 @@ var PhotoSwipeUI_Default =
 
 	ui.updateIndexIndicator = function() {
 		if(_options.counterEl) {
-			if (_indexIndicator && typeof _indexIndicator === 'object' && _indexIndicator.nodeType) {
-				_indexIndicator.innerHTML = (pswp.getCurrentIndex()+1) + 
+			_indexIndicator.innerHTML = (pswp.getCurrentIndex()+1) + 
 										_options.indexIndicatorSep + 
 										_options.getNumItemsFn();
-			}
 		}
 	};
 	
