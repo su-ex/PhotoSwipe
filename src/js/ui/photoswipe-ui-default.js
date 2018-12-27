@@ -37,6 +37,7 @@ var PhotoSwipeUI_Default =
 		_listen,
 		_isInAutoplay = false,
 		_autoplayTimeout,
+		_deferredUiHideSetIdleTimeout,
 
 		_loadingIndicator,
 		_loadingIndicatorHidden,
@@ -107,7 +108,8 @@ var PhotoSwipeUI_Default =
 			if(_blockControlsTap) {
 				return true;
 			}
-
+			
+			clearTimeout(_deferredUiHideSetIdleTimeout);
 
 			e = e || window.event;
 
@@ -200,6 +202,7 @@ var PhotoSwipeUI_Default =
 		_toggleAutoplay = function() {
 			if(!_isInAutoplay) {
 				ui.enableAutoplay();
+				_deferredUiHideSetIdle(128);
 			} else {
 				ui.disableAutoplay();
 			}
@@ -572,6 +575,23 @@ var PhotoSwipeUI_Default =
 		});
 	};
 
+	var _deferredUiHideSetIdle = function(timeToHide) {
+		clearTimeout(_deferredUiHideSetIdleTimeout);
+		_deferredUiHideSetIdleTimeout = setTimeout(function() {
+			if(pswp.likelyTouchDevice) {
+				ui.hideControls();
+			} else {
+				ui.setIdle(true);
+			}
+		}, timeToHide);
+		
+		setTimeout(function () {
+			framework.bind(document, 'mousemove', function () {
+				clearTimeout(_deferredUiHideSetIdleTimeout);
+			});
+		}, 128);
+	};
+
 
 	
 
@@ -671,6 +691,7 @@ var PhotoSwipeUI_Default =
 			framework.addClass( _controls, 'pswp__ui--hidden');
 			ui.setIdle(false);
 			ui.disableAutoplay();
+			clearTimeout(_deferredUiHideSetIdleTimeout);
 		});
 		
 
@@ -703,6 +724,8 @@ var PhotoSwipeUI_Default =
 		_setupLoadingIndicator();
 
 		_setupAutoplay();
+		
+		_deferredUiHideSetIdle(_options.timeToIdle);
 	};
 
 	ui.setIdle = function(isIdle) {
@@ -767,6 +790,8 @@ var PhotoSwipeUI_Default =
 		if(_blockControlsTap) {
 			return;
 		}
+		
+		clearTimeout(_deferredUiHideSetIdleTimeout);
 
 		if(e.detail && e.detail.pointerType === 'mouse') {
 
