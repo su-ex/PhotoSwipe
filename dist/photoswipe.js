@@ -1,4 +1,4 @@
-/*! PhotoSwipe - v4.1.2 - 2018-12-17
+/*! PhotoSwipe - v4.1.2 - 2018-12-27
 * http://photoswipe.com
 * Copyright (c) 2018 Dmitry Semenov; */
 (function (root, factory) { 
@@ -1068,17 +1068,17 @@ var publicMethods = {
 
 		if ( _options.animateTransitions ) {
 
-			_finishSwipeMainScrollGesture('swipe', (80*dir), {
+			_finishSwipeMainScrollGesture('swipe', (80*index), {
 				lastFlickDist: {
 					x : 80,
 					y: 0
 				},
 				lastFlickOffset: {
-					x : (80*dir),
+					x : (80*index),
 					y: 0
 				},
 				lastFlickSpeed: {
-					x : (2*dir),
+					x : (2*index),
 					y: 0
 				}
 			});

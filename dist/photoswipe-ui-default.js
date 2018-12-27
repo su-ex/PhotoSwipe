@@ -1,4 +1,4 @@
-/*! PhotoSwipe Default UI - 4.1.2 - 2018-12-17
+/*! PhotoSwipe Default UI - 4.1.2 - 2018-12-27
 * http://photoswipe.com
 * Copyright (c) 2018 Dmitry Semenov; */
 /**
@@ -38,6 +38,9 @@ var PhotoSwipeUI_Default =
 		_initalCloseOnScrollValue,
 		_isIdle,
 		_listen,
+		_isInAutoplay = false,
+		_autoplayTimeout,
+		_deferredUiHideSetIdleTimeout,
 
 		_loadingIndicator,
 		_loadingIndicatorHidden,
@@ -52,6 +55,7 @@ var PhotoSwipeUI_Default =
 			timeToIdle: 4000, 
 			timeToIdleOutside: 1000,
 			loadingIndicatorDelay: 1000, // 2s
+			timeForAutoplay: 5000,
 			
 			addCaptionHTMLFn: function(item, captionEl /*, isFake */) {
 				if(!item.title) {
@@ -70,6 +74,7 @@ var PhotoSwipeUI_Default =
 			counterEl: true,
 			arrowEl: true,
 			preloaderEl: true,
+			autoplayEl: true,
 
 			tapToClose: false,
 			tapToToggleControls: true,
@@ -106,7 +111,8 @@ var PhotoSwipeUI_Default =
 			if(_blockControlsTap) {
 				return true;
 			}
-
+			
+			clearTimeout(_deferredUiHideSetIdleTimeout);
 
 			e = e || window.event;
 
@@ -196,6 +202,17 @@ var PhotoSwipeUI_Default =
 			return false;
 		},
 
+		_toggleAutoplay = function() {
+			if(!_isInAutoplay) {
+				ui.enableAutoplay();
+				_deferredUiHideSetIdle(128);
+			} else {
+				ui.disableAutoplay();
+			}
+			
+			return false;
+		},
+
 		_openWindowPopup = function(e) {
 			e = e || window.event;
 			var target = e.target || e.srcElement;
@@ -282,7 +299,7 @@ var PhotoSwipeUI_Default =
 			}
 		},
 		_setupFullscreenAPI = function() {
-			if(_options.fullscreenEl && !framework.features.isOldAndroid) {
+			if(!framework.features.isOldAndroid) {
 				if(!_fullscrenAPI) {
 					_fullscrenAPI = ui.getFullscreenAPI();
 				}
@@ -485,6 +502,13 @@ var PhotoSwipeUI_Default =
 			} 
 		},
 		{ 
+			name: 'button--autoplay', 
+			option: 'autoplayEl',
+			onTap: function() {
+				_toggleAutoplay();
+			}
+		},
+		{ 
 			name: 'preloader', 
 			option: 'preloaderEl',
 			onInit: function(el) {  
@@ -536,6 +560,39 @@ var PhotoSwipeUI_Default =
 		if(topBar) {
 			loopThroughChildElements( topBar.children );
 		}
+	};
+
+	var _setupAutoplay = function() {
+		_listen('imageLoadComplete', function(index, item) {
+			if(_isInAutoplay && pswp.currItem === item) {
+				clearTimeout(_autoplayTimeout);
+				_autoplayTimeout = setTimeout(pswp.next, _options.timeForAutoplay);
+			}
+		});
+		
+		_listen('afterChange', function() {
+			if(_isInAutoplay && pswp.currItem.loaded) {
+				clearTimeout(_autoplayTimeout);
+				_autoplayTimeout = setTimeout(pswp.next, _options.timeForAutoplay);
+			}
+		});
+	};
+
+	var _deferredUiHideSetIdle = function(timeToHide) {
+		clearTimeout(_deferredUiHideSetIdleTimeout);
+		_deferredUiHideSetIdleTimeout = setTimeout(function() {
+			if(pswp.likelyTouchDevice) {
+				ui.hideControls();
+			} else {
+				ui.setIdle(true);
+			}
+		}, timeToHide);
+		
+		setTimeout(function () {
+			framework.bind(document, 'mousemove', function () {
+				clearTimeout(_deferredUiHideSetIdleTimeout);
+			});
+		}, 128);
 	};
 
 
@@ -636,6 +693,8 @@ var PhotoSwipeUI_Default =
 			framework.removeClass(_controls, 'pswp__ui--over-close');
 			framework.addClass( _controls, 'pswp__ui--hidden');
 			ui.setIdle(false);
+			ui.disableAutoplay();
+			clearTimeout(_deferredUiHideSetIdleTimeout);
 		});
 		
 
@@ -666,6 +725,10 @@ var PhotoSwipeUI_Default =
 		_setupFullscreenAPI();
 
 		_setupLoadingIndicator();
+
+		_setupAutoplay();
+		
+		_deferredUiHideSetIdle(_options.timeToIdle);
 	};
 
 	ui.setIdle = function(isIdle) {
@@ -710,6 +773,9 @@ var PhotoSwipeUI_Default =
 		
 		// toogle pswp--fs class on root element
 		framework[ (_fullscrenAPI.isFullscreen() ? 'add' : 'remove') + 'Class' ](pswp.template, 'pswp--fs');
+		if (!_fullscrenAPI.isFullscreen()) {
+			pswp.shout('fullscreenExited');
+		}
 	};
 
 	ui.updateIndexIndicator = function() {
@@ -727,6 +793,8 @@ var PhotoSwipeUI_Default =
 		if(_blockControlsTap) {
 			return;
 		}
+		
+		clearTimeout(_deferredUiHideSetIdleTimeout);
 
 		if(e.detail && e.detail.pointerType === 'mouse') {
 
@@ -853,6 +921,18 @@ var PhotoSwipeUI_Default =
 		}
 
 		return api;
+	};
+	
+	ui.enableAutoplay = function() {
+		if(pswp.currItem.loaded) _autoplayTimeout = setTimeout(pswp.next, _options.timeForAutoplay);
+		framework.addClass(_controls, 'pswp--autoplay');
+		_isInAutoplay = true;
+	};
+	
+	ui.disableAutoplay = function() {
+		clearTimeout(_autoplayTimeout);
+		framework.removeClass(_controls, 'pswp--autoplay');
+		_isInAutoplay = false;
 	};
 
 
