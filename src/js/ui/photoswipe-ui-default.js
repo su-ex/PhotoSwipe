@@ -35,6 +35,8 @@ var PhotoSwipeUI_Default =
 		_initalCloseOnScrollValue,
 		_isIdle,
 		_listen,
+		_isInAutoplay = false,
+		_autoplayTimeout,
 
 		_loadingIndicator,
 		_loadingIndicatorHidden,
@@ -49,6 +51,7 @@ var PhotoSwipeUI_Default =
 			timeToIdle: 4000, 
 			timeToIdleOutside: 1000,
 			loadingIndicatorDelay: 1000, // 2s
+			timeForAutoplay: 5000,
 			
 			addCaptionHTMLFn: function(item, captionEl /*, isFake */) {
 				if(!item.title) {
@@ -67,6 +70,7 @@ var PhotoSwipeUI_Default =
 			counterEl: true,
 			arrowEl: true,
 			preloaderEl: true,
+			autoplayEl: true,
 
 			tapToClose: false,
 			tapToToggleControls: true,
@@ -190,6 +194,16 @@ var PhotoSwipeUI_Default =
 			if(!_shareModalHidden) {
 				_updateShareURLs();
 			}
+			return false;
+		},
+
+		_toggleAutoplay = function() {
+			if(!_isInAutoplay) {
+				ui.enableAutoplay();
+			} else {
+				ui.disableAutoplay();
+			}
+			
 			return false;
 		},
 
@@ -482,6 +496,13 @@ var PhotoSwipeUI_Default =
 			} 
 		},
 		{ 
+			name: 'button--autoplay', 
+			option: 'autoplayEl',
+			onTap: function() {
+				_toggleAutoplay();
+			}
+		},
+		{ 
 			name: 'preloader', 
 			option: 'preloaderEl',
 			onInit: function(el) {  
@@ -533,6 +554,22 @@ var PhotoSwipeUI_Default =
 		if(topBar) {
 			loopThroughChildElements( topBar.children );
 		}
+	};
+
+	var _setupAutoplay = function() {
+		_listen('imageLoadComplete', function(index, item) {
+			if(_isInAutoplay && pswp.currItem === item) {
+				clearTimeout(_autoplayTimeout);
+				_autoplayTimeout = setTimeout(pswp.next, _options.timeForAutoplay);
+			}
+		});
+		
+		_listen('afterChange', function() {
+			if(_isInAutoplay && pswp.currItem.loaded) {
+				clearTimeout(_autoplayTimeout);
+				_autoplayTimeout = setTimeout(pswp.next, _options.timeForAutoplay);
+			}
+		});
 	};
 
 
@@ -633,6 +670,7 @@ var PhotoSwipeUI_Default =
 			framework.removeClass(_controls, 'pswp__ui--over-close');
 			framework.addClass( _controls, 'pswp__ui--hidden');
 			ui.setIdle(false);
+			ui.disableAutoplay();
 		});
 		
 
@@ -663,6 +701,8 @@ var PhotoSwipeUI_Default =
 		_setupFullscreenAPI();
 
 		_setupLoadingIndicator();
+
+		_setupAutoplay();
 	};
 
 	ui.setIdle = function(isIdle) {
@@ -853,6 +893,18 @@ var PhotoSwipeUI_Default =
 		}
 
 		return api;
+	};
+	
+	ui.enableAutoplay = function() {
+		if(pswp.currItem.loaded) _autoplayTimeout = setTimeout(pswp.next, _options.timeForAutoplay);
+		framework.addClass(_controls, 'pswp--autoplay');
+		_isInAutoplay = true;
+	};
+	
+	ui.disableAutoplay = function() {
+		clearTimeout(_autoplayTimeout);
+		framework.removeClass(_controls, 'pswp--autoplay');
+		_isInAutoplay = false;
 	};
 
 
