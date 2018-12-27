@@ -279,7 +279,7 @@ var PhotoSwipeUI_Default =
 			}
 		},
 		_setupFullscreenAPI = function() {
-			if(_options.fullscreenEl && !framework.features.isOldAndroid) {
+			if(!framework.features.isOldAndroid) {
 				if(!_fullscrenAPI) {
 					_fullscrenAPI = ui.getFullscreenAPI();
 				}
@@ -707,6 +707,9 @@ var PhotoSwipeUI_Default =
 		
 		// toogle pswp--fs class on root element
 		framework[ (_fullscrenAPI.isFullscreen() ? 'add' : 'remove') + 'Class' ](pswp.template, 'pswp--fs');
+		if (!_fullscrenAPI.isFullscreen()) {
+			pswp.shout('fullscreenExited');
+		}
 	};
 
 	ui.updateIndexIndicator = function() {
