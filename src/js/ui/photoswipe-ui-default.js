@@ -33,11 +33,10 @@ var PhotoSwipeUI_Default =
 		_shareModal,
 		_shareModalHidden = true,
 		_initalCloseOnScrollValue,
-		_isIdle,
 		_listen,
 		_isInAutoplay = false,
 		_autoplayTimeout,
-		_deferredUiHideSetIdleTimeout,
+		_deferredUiHideTimeout,
 
 		_loadingIndicator,
 		_loadingIndicatorHidden,
@@ -109,11 +108,11 @@ var PhotoSwipeUI_Default =
 				return true;
 			}
 			
-			clearTimeout(_deferredUiHideSetIdleTimeout);
+			clearTimeout(_deferredUiHideTimeout);
 
 			e = e || window.event;
 
-			if(_options.timeToIdle && _options.mouseUsed && !_isIdle) {
+			if(_options.timeToIdle && _options.mouseUsed) {
 				// reset idle timer
 				_onIdleMouseMove();
 			}
@@ -202,7 +201,7 @@ var PhotoSwipeUI_Default =
 		_toggleAutoplay = function() {
 			if(!_isInAutoplay) {
 				ui.enableAutoplay();
-				_deferredUiHideSetIdle(128);
+				_deferredUiHide(128);
 			} else {
 				ui.disableAutoplay();
 			}
@@ -276,23 +275,17 @@ var PhotoSwipeUI_Default =
 			}
 		},
 		_idleInterval,
-		_idleTimer,
 		_idleIncrement = 0,
 		_onIdleMouseMove = function() {
-			clearTimeout(_idleTimer);
+			clearTimeout(_deferredUiHideTimeout);
 			_idleIncrement = 0;
-			if(_isIdle) {
-				ui.setIdle(false);
-			}
+			ui.showControls();
 		},
 		_onMouseLeaveWindow = function(e) {
 			e = e ? e : window.event;
 			var from = e.relatedTarget || e.toElement;
 			if (!from || from.nodeName === 'HTML') {
-				clearTimeout(_idleTimer);
-				_idleTimer = setTimeout(function() {
-					ui.setIdle(true);
-				}, _options.timeToIdleOutside);
+				_deferredUiHide(_options.timeToIdleOutside);
 			}
 		},
 		_setupFullscreenAPI = function() {
@@ -393,7 +386,7 @@ var PhotoSwipeUI_Default =
 					_idleInterval = setInterval(function() {
 						_idleIncrement++;
 						if(_idleIncrement === 2) {
-							ui.setIdle(true);
+							ui.hideControls();
 						}
 					}, _options.timeToIdle / 2);
 				});
@@ -575,21 +568,11 @@ var PhotoSwipeUI_Default =
 		});
 	};
 
-	var _deferredUiHideSetIdle = function(timeToHide) {
-		clearTimeout(_deferredUiHideSetIdleTimeout);
-		_deferredUiHideSetIdleTimeout = setTimeout(function() {
-			if(pswp.likelyTouchDevice) {
-				ui.hideControls();
-			} else {
-				ui.setIdle(true);
-			}
+	var _deferredUiHide = function(timeToHide) {
+		clearTimeout(_deferredUiHideTimeout);
+		_deferredUiHideTimeout = setTimeout(function() {
+			ui.hideControls();
 		}, timeToHide);
-		
-		setTimeout(function () {
-			framework.bind(document, 'mousemove', function () {
-				clearTimeout(_deferredUiHideSetIdleTimeout);
-			});
-		}, 128);
 	};
 
 
@@ -689,9 +672,8 @@ var PhotoSwipeUI_Default =
 			}
 			framework.removeClass(_controls, 'pswp__ui--over-close');
 			framework.addClass( _controls, 'pswp__ui--hidden');
-			ui.setIdle(false);
 			ui.disableAutoplay();
-			clearTimeout(_deferredUiHideSetIdleTimeout);
+			clearTimeout(_deferredUiHideTimeout);
 		});
 		
 
@@ -725,12 +707,7 @@ var PhotoSwipeUI_Default =
 
 		_setupAutoplay();
 		
-		_deferredUiHideSetIdle(_options.timeToIdle);
-	};
-
-	ui.setIdle = function(isIdle) {
-		_isIdle = isIdle;
-		_togglePswpClass(_controls, 'ui--idle', isIdle);
+		_deferredUiHide(_options.timeToIdle);
 	};
 
 	ui.update = function() {
@@ -791,7 +768,7 @@ var PhotoSwipeUI_Default =
 			return;
 		}
 		
-		clearTimeout(_deferredUiHideSetIdleTimeout);
+		clearTimeout(_deferredUiHideTimeout);
 
 		if(e.detail && e.detail.pointerType === 'mouse') {
 
