@@ -37,6 +37,7 @@ var PhotoSwipeUI_Default =
 		_isInAutoplay = false,
 		_autoplayTimeout,
 		_deferredUiHideTimeout,
+		_deferredUiHideWaitForLoad = false,
 
 		_loadingIndicator,
 		_loadingIndicatorHidden,
@@ -318,6 +319,10 @@ var PhotoSwipeUI_Default =
 						if(pswp.currItem && pswp.currItem.loading) {
 
 							if( !pswp.allowProgressiveImg() || (pswp.currItem.img && !pswp.currItem.img.naturalWidth)  ) {
+								if (!_controlsVisible) {
+									_deferredUiHideWaitForLoad = true;
+									ui.showControls();
+								}
 								// show preloader if progressive loading is not enabled, 
 								// or image width is not defined yet (because of slow connection)
 								_toggleLoadingIndicator(false); 
@@ -325,6 +330,9 @@ var PhotoSwipeUI_Default =
 							}
 							
 						} else {
+							if (_deferredUiHideWaitForLoad) {
+								ui.hideControls();
+							}
 							_toggleLoadingIndicator(true); // hide preloader
 						}
 
@@ -333,6 +341,9 @@ var PhotoSwipeUI_Default =
 				});
 				_listen('imageLoadComplete', function(index, item) {
 					if(pswp.currItem === item) {
+						if (_deferredUiHideWaitForLoad) {
+							ui.hideControls();
+						}
 						_toggleLoadingIndicator(true);
 					}
 				});
@@ -386,7 +397,7 @@ var PhotoSwipeUI_Default =
 					_idleInterval = setInterval(function() {
 						_idleIncrement++;
 						if(_idleIncrement === 2) {
-							ui.hideControls();
+							_deferredUiHide(0);
 						}
 					}, _options.timeToIdle / 2);
 				});
@@ -571,8 +582,17 @@ var PhotoSwipeUI_Default =
 	var _deferredUiHide = function(timeToHide) {
 		clearTimeout(_deferredUiHideTimeout);
 		_deferredUiHideTimeout = setTimeout(function() {
-			ui.hideControls();
+			if (pswp.currItem && pswp.currItem.loading) {
+				_deferredUiHideWaitForLoad = true;
+			} else {
+				ui.hideControls();
+			}
 		}, timeToHide);
+	};
+
+	var _clearDeferredUiHide = function(timeToHide) {
+		clearTimeout(_deferredUiHideTimeout);
+		_deferredUiHideWaitForLoad = false;
 	};
 
 
@@ -673,7 +693,7 @@ var PhotoSwipeUI_Default =
 			framework.removeClass(_controls, 'pswp__ui--over-close');
 			framework.addClass( _controls, 'pswp__ui--hidden');
 			ui.disableAutoplay();
-			clearTimeout(_deferredUiHideTimeout);
+			_clearDeferredUiHide();
 		});
 		
 
@@ -768,7 +788,7 @@ var PhotoSwipeUI_Default =
 			return;
 		}
 		
-		clearTimeout(_deferredUiHideTimeout);
+		_clearDeferredUiHide();
 
 		if(e.detail && e.detail.pointerType === 'mouse') {
 
@@ -818,9 +838,11 @@ var PhotoSwipeUI_Default =
 	ui.hideControls = function() {
 		framework.addClass(_controls,'pswp__ui--hidden');
 		_controlsVisible = false;
+		_clearDeferredUiHide();
 	};
 
 	ui.showControls = function() {
+		clearTimeout(_deferredUiHideTimeout);
 		_controlsVisible = true;
 		if(!_overlayUIUpdated) {
 			ui.update();
