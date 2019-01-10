@@ -1,4 +1,4 @@
-/*! PhotoSwipe Default UI - 4.1.2 - 2019-01-03
+/*! PhotoSwipe Default UI - 4.1.2 - 2019-01-10
 * http://photoswipe.com
 * Copyright (c) 2019 Dmitry Semenov; */
 /**
@@ -815,6 +815,7 @@ var PhotoSwipeUI_Default =
 
 			// tap anywhere (except buttons) to toggle visibility of controls
 			if(_options.tapToToggleControls) {
+				_idleIncrement = 3;
 				if(_controlsVisible) {
 					ui.hideControls();
 				} else {
