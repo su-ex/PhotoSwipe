@@ -812,6 +812,7 @@ var PhotoSwipeUI_Default =
 
 			// tap anywhere (except buttons) to toggle visibility of controls
 			if(_options.tapToToggleControls) {
+				_idleIncrement = 3;
 				if(_controlsVisible) {
 					ui.hideControls();
 				} else {
