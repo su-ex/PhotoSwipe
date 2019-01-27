@@ -145,7 +145,7 @@ var framework = {
 			features.caf = window.cancelAnimationFrame;
 		}
 
-		features.pointerEvent = !!(window.PointerEvent) || navigator.msPointerEnabled;
+		features.pointerEvent = navigator.pointerEnabled || navigator.msPointerEnabled;
 
 		// fix false-positive detection of old Android in new IE
 		// (IE11 ua string contains "Android 4.0")
