@@ -1,4 +1,4 @@
-/*! PhotoSwipe Default UI - 4.1.3 - 2019-01-10
+/*! PhotoSwipe Default UI - 4.1.3 - 2019-01-27
 * http://photoswipe.com
 * Copyright (c) 2019 Dmitry Semenov; */
 /**
